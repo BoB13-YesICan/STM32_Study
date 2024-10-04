@@ -13,7 +13,7 @@ https://github.com/JorgeMaker/CanSnifferSuite
 ![capture1.png](capture1.png)
 
 ## 환경설정
-![capture2.png](capture1.png)
+![capture2.png](capture2.png)
 
 *나머지는 STM32F407VGT6_CAN_Sniffer_NonRTOS.ioc 참조
 

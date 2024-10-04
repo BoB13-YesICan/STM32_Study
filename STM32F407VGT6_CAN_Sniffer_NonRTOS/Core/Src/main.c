@@ -16,6 +16,11 @@
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 
+uint16_t num=250;
+char data[300]="";
+char str[]="hello world!\n";
+
+
 #define SIZE_RX 30
 
 typedef struct qCmd {
@@ -195,7 +200,15 @@ uint32_t sendCANMessage(uint8_t dlc, uint32_t msgID, bool isRTR,
 		pHeader.RTR = CAN_RTR_DATA;
 	}
 
-	HAL_CAN_AddTxMessage(&hcan1, &pHeader, data, &TxMailbox);
+	// CAN 메시지 전송
+	if (HAL_CAN_AddTxMessage(&hcan1, &pHeader, data, &TxMailbox) == HAL_OK) {
+		// 메시지 전송 성공 시 ORANGE_LED 켜기
+		HAL_GPIO_TogglePin(ORANGE_LED_GPIO_Port, ORANGE_LED_Pin);
+	} else {
+	    // 메시지 전송 실패 시 에러 처리
+	    ErrorAppHandler();
+	}
+
 	return TxMailbox;
 }
 /**
@@ -413,8 +426,25 @@ uint8_t serializeDatagram(uint8_t *pExitBuffer,
  * @retval None
  */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan1) {
+
 	if (HAL_CAN_GetRxMessage(hcan1, CAN_RX_FIFO0, &rxMessageHeader,rxDataReceived) == HAL_OK) {
 		HAL_GPIO_TogglePin(PIN3_GPIO_Port, PIN3_Pin);
+
+		// STM32F407 보드에서 CAN 메시지 수신 시 LED 토글
+		HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
+
+		/*디버깅 코드 USART3에 수신한 CAN 데이터를 출력하기 위해서 사용*/
+//		// 표준/확장 CAN ID에 따라 출력 메시지 생성
+//		if (rxMessageHeader.IDE == CAN_ID_STD) {
+//		    sprintf(data, "Standard CAN ID: 0x%" PRIx32 "\r\n", rxMessageHeader.StdId);
+//		} else {
+//		    sprintf(data, "Extended CAN ID: 0x%" PRIx32 "\r\n", rxMessageHeader.ExtId);
+//		}
+//
+//		// UART를 통해 CAN ID 전송 (너무 빠른 전송을 피하기 위해 적절한 크기)
+//		HAL_UART_Transmit(&huart3, (uint8_t*)data, strlen(data), HAL_MAX_DELAY);
+
+
 		EncuedCANMsg msg;
 		msg.header = rxMessageHeader;
 		memcpy((char*) msg.data, (char*) rxDataReceived,rxMessageHeader.DLC);
@@ -821,6 +851,7 @@ void generateDummyCANTraffic(uint32_t delay){
   */
 int main(void)
 {
+
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
@@ -844,17 +875,26 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_CAN1_Init();
-  MX_USART3_UART_Init();
   MX_TIM2_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
 	// Enable interrupt for to be able to receiving data via UART
 	HAL_UART_Receive_IT(&huart3, rxUARTBuff, 1);
 	// Set CAN Filter to receive all messages
 	setCANFilterAcceptAll();
+
+	//원래코드
 	HAL_CAN_Start(&hcan1);
 	if (snifferAtivityStatus != SNIFFER_STOPPED) {
 		HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
 	}
+
+	/* 디버깅 코드 SNIFFER_ACTIVITY 상태를 만들기 위해서 */
+//	HAL_CAN_Start(&hcan1);
+//	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) {
+//		ErrorAppHandler();  // 에러 처리
+//	}
+
 	// Initialize EncuedCANMsg
 	q_init(&canMsgQueue, sizeof(EncuedCANMsg), CAN_MSSG_QUEUE_SIZE,
 			IMPLEMENTATION, false);
@@ -1051,13 +1091,10 @@ static void MX_GPIO_Init(void)
 /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(BLUE_LED_GPIO_Port, BLUE_LED_Pin, GPIO_PIN_RESET);
+  __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, PIN3_Pin|PIN2_Pin|PIN4_Pin, GPIO_PIN_RESET);
@@ -1065,12 +1102,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, PIN5_Pin|PIN1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : BLUE_LED_Pin */
-  GPIO_InitStruct.Pin = BLUE_LED_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(BLUE_LED_GPIO_Port, &GPIO_InitStruct);
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOD, GREEN_LED_Pin|ORANGE_LED_Pin|RED_LED_Pin|BLUE_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PIN3_Pin PIN2_Pin PIN4_Pin */
   GPIO_InitStruct.Pin = PIN3_Pin|PIN2_Pin|PIN4_Pin;
@@ -1085,6 +1118,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : GREEN_LED_Pin ORANGE_LED_Pin RED_LED_Pin BLUE_LED_Pin */
+  GPIO_InitStruct.Pin = GREEN_LED_Pin|ORANGE_LED_Pin|RED_LED_Pin|BLUE_LED_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
 /* USER CODE BEGIN MX_GPIO_Init_2 */
 /* USER CODE END MX_GPIO_Init_2 */

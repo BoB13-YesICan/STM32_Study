@@ -16,12 +16,14 @@ https://github.com/JorgeMaker/CanSnifferSuite
 
 ## 결과
 ![result1.png](result1.gif)
+
 ![result2.png](result2.gif)
 
 ## 회고
 아래는 원본 ioc
 
 ![capture2.png](capture2.png)
+
 사용된 핀 중에서 SYS, RCC, USART, CAN을 제외하면 사용하지 않거나 함수 실행이 제대로 되었는지 확인하는 GPIO로 보드에서 지원하는 LED로 대체가 가능하므로 삭제가 가능하다.
 
 또한  보드 내장 LED의 경우 현재 우리가 사용하는 보드인 STM32F407G-DISC1의 경우에는 PD12 ~ 15까지 지원한다. 

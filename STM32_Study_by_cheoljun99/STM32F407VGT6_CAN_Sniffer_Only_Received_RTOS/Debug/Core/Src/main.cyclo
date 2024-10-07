@@ -1,0 +1,16 @@
+../Core/Src/main.c:109:6:bootLEDIndicator	2
+../Core/Src/main.c:120:6:setSinfferCANFilter	1
+../Core/Src/main.c:139:9:serializeDatagram	4
+../Core/Src/main.c:184:7:HAL_CAN_RxFifo0MsgPendingCallback	3
+../Core/Src/main.c:201:5:main	1
+../Core/Src/main.c:299:6:SystemClock_Config	3
+../Core/Src/main.c:343:13:MX_CAN1_Init	2
+../Core/Src/main.c:380:13:MX_TIM1_Init	4
+../Core/Src/main.c:426:13:MX_USART1_UART_Init	2
+../Core/Src/main.c:459:13:MX_GPIO_Init	1
+../Core/Src/main.c:482:6:recieivedDatagramsThread	3
+../Core/Src/main.c:534:6:fordwardDatagramsThread	2
+../Core/Src/main.c:556:6:idleThread	1
+../Core/Src/main.c:572:6:StartDefaultTask	1
+../Core/Src/main.c:591:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:608:6:Error_Handler	1

@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
-		<item key="selection" value="BLUE"/>
+		<item key="selection" value="serializeDatagram"/>
 		<item key="wrap" value="true"/>
 		<item key="casesensitive" value="false"/>
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
 		<list key="findhistory">
+			<item value="serializeDatagram"/>
+			<item value="// RTC 기본 시간을 설정할 필요가 있다면 이 부분에서 설정"/>
 			<item value="blue"/>
 			<item value="osSIgnal"/>
 			<item value="GREEN"/>

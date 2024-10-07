@@ -266,3 +266,18 @@ Command-line arguments:  -os win32 -ws win32 -arch x86_64
 
 !ENTRY org.eclipse.cdt.core 1 0 2024-10-07 23:19:50.692
 !MESSAGE Indexed 'STM32F407VGT6_CAN_Communication_RTOS' (37 sources, 151 headers) in 3.08 sec: 16,377 declarations; 79,211 references; 1 unresolved inclusions; 202 syntax errors; 241 unresolved names (0.25%)
+!SESSION 2024-10-08 03:42:42.391 -----------------------------------------------
+eclipse.buildId=Version 1.16.1
+java.version=17.0.11
+java.vendor=Eclipse Adoptium
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=ko_KR
+Command-line arguments:  -os win32 -ws win32 -arch x86_64
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2024-10-08 03:42:55.157
+!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2024-10-08 03:42:55.179
+!MESSAGE Log4j2 initialized with config file C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\.metadata\.log4j2.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2024-10-08 03:43:11.668
+!MESSAGE Started RMI Server, listening on port 41338

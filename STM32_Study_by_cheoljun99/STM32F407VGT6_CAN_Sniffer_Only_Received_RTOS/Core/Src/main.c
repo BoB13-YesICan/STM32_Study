@@ -184,6 +184,7 @@ uint8_t serializeDatagram(uint8_t *pExitBuffer, CAN_RxHeaderTypeDef receivedCANH
  void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
   	if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxMessageHeader,rxDataReceived) == HAL_OK) {
   		if (snifferAtivityStatus == SNIFFER_ACTIVE) {
+  			 // 수신된 CAN 데이터를 UART로 출력 (가능한 최소 작업만 ISR에서 수행)
   			osSignalSet(receivedDatagramTaskId, osAnySignal);
 
   		}
@@ -489,7 +490,7 @@ void recieivedDatagramsThread(void const *argument) {
 			CANMessage *msgToSend = osMailCAlloc(canDatagramsQueue, noWait);
 			if (msgToSend != NULL) {
 				 msgToSend->header = rxMessageHeader;
-				 strcpy((char*) msgToSend->data, (char*) rxDataReceived);
+				 memcpy(msgToSend->data, rxDataReceived, sizeof(rxDataReceived));
 				 osMailPut(canDatagramsQueue, msgToSend);
 			}
 			osThreadYield();

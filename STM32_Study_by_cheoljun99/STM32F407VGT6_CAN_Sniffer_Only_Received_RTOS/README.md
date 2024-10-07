@@ -5,7 +5,7 @@
 2. 아두이노 CH340G USB to TTL 모듈
 3. STM32F407G-DISC1 보드 STM32F407VGT6 MCU
 4. USB to CAN 통신 분석기
-5. putty
+5. Putty
 
 ## 환경설정
 

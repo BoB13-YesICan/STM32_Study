@@ -1,0 +1,238 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * This software component is licensed by ST under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "cmsis_os.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include "stdio.h"
+#include "string.h"
+#include "stdbool.h"
+#include <inttypes.h>
+
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+typedef struct qCANMsg {
+	uint8_t data[8];
+	CAN_RxHeaderTypeDef header;
+} CANMessage;
+
+typedef enum {
+	SNIFFER_STOPPED = 0x00, SNIFFER_ACTIVE = 0x01,
+} SnifferAtivityStatus;
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+#define SIZE_RX 20
+#define noWait 0
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+CAN_HandleTypeDef hcan1;
+UART_HandleTypeDef huart1;
+
+osThreadId forwardDatagramTaskId;
+osThreadId receivedDatagramTaskId;
+osThreadId idleTaskId;
+
+osMailQDef(canDatagramsQueue, 100, CANMessage);  // Define mail queue
+osMailQId canDatagramsQueue;
+
+// Peripherals ISR global variables
+CAN_RxHeaderTypeDef rxMessageHeader;
+uint8_t rxDataReceived[8];
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_CAN1_Init(void);
+static void MX_USART1_UART_Init(void);
+void StartDefaultTask(void const * argument);
+
+/* USER CODE BEGIN PFP */
+void bootLEDIndicator(void);
+void fordwardDatagramsThread(void const*);
+void recieivedDatagramsThread(void const*);
+void idleThread(void const*);
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+#define NUMBER_BLINKS 20
+
+void bootLEDIndicator(void) {
+	int blinkCounter = 0;
+	while (blinkCounter < NUMBER_BLINKS) {
+		HAL_GPIO_TogglePin(ORANGE_LED_SYSTEM_GPIO_Port, ORANGE_LED_SYSTEM_Pin);
+		HAL_Delay(30);
+		blinkCounter++;
+	}
+	HAL_GPIO_WritePin(ORANGE_LED_SYSTEM_GPIO_Port, ORANGE_LED_SYSTEM_Pin, GPIO_PIN_SET);
+}
+
+uint8_t serializeDatagram(uint8_t *pExitBuffer, CAN_RxHeaderTypeDef receivedCANHeader, uint8_t *rxData) {
+	uint8_t cursor = 0;
+	char buffer[50];
+
+	// Timestamp (optional, assuming HAL_GetTick() is used for time)
+	uint32_t timestamp = HAL_GetTick();
+	cursor += sprintf((char*) pExitBuffer + cursor, "[%lu] ", timestamp);
+
+	// Identifier (CAN ID)
+	if (receivedCANHeader.IDE == CAN_ID_EXT) {
+		cursor += sprintf((char*) pExitBuffer + cursor, "EXT ID: 0x%" PRIx32 " ", receivedCANHeader.ExtId);
+	} else {
+		cursor += sprintf((char*) pExitBuffer + cursor, "STD ID: 0x%" PRIx32 " ", receivedCANHeader.StdId);
+	}
+
+	// Data Length Code (DLC)
+	cursor += sprintf((char*) pExitBuffer + cursor, "DLC: %d ", receivedCANHeader.DLC);
+
+	// Data (if any)
+	if (receivedCANHeader.RTR == CAN_RTR_DATA) {
+		cursor += sprintf((char*) pExitBuffer + cursor, "Data: ");
+		for (int i = 0; i < receivedCANHeader.DLC; i++) {
+			cursor += sprintf((char*) pExitBuffer + cursor, "%02X ", rxData[i]);
+		}
+	}
+	cursor += sprintf((char*) pExitBuffer + cursor, "\r\n");
+
+	return cursor;
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+	if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxMessageHeader, rxDataReceived) == HAL_OK) {
+		osSignalSet(receivedDatagramTaskId, osAnySignal);
+	}
+	HAL_GPIO_TogglePin(RED_LED_CANRX_GPIO_Port, RED_LED_CANRX_Pin);
+}
+
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void) {
+  /* USER CODE BEGIN 1 */
+
+  /* USER CODE END 1 */
+
+  /* MCU Configuration--------------------------------------------------------*/
+
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_CAN1_Init();
+  MX_USART1_UART_Init();
+
+  /* USER CODE BEGIN 2 */
+  setSinfferCANFilter();
+  HAL_CAN_Start(&hcan1);
+  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+
+  /* Create the mail queue for CAN datagrams */
+  canDatagramsQueue = osMailCreate(osMailQ(canDatagramsQueue), NULL);
+
+  /* Create threads */
+  osThreadDef(forwardDatagramsTask, fordwardDatagramsThread, osPriorityNormal, 0, 640);
+  forwardDatagramTaskId = osThreadCreate(osThread(forwardDatagramsTask), NULL);
+
+  osThreadDef(receiveDatagramsTask, recieivedDatagramsThread, osPriorityNormal, 0, 640);
+  receivedDatagramTaskId = osThreadCreate(osThread(receiveDatagramsTask), NULL);
+
+  osThreadDef(idleTask, idleThread, osPriorityIdle, 0, 128);
+  idleTaskId = osThreadCreate(osThread(idleTask), NULL);
+
+  /* Start boot LED indicator */
+  bootLEDIndicator();
+
+  /* USER CODE END 2 */
+
+  /* Start scheduler */
+  osKernelStart();
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1) {
+    /* USER CODE END WHILE */
+  }
+}
+
+/* USER CODE BEGIN 4 */
+void recieivedDatagramsThread(void const *argument) {
+	osEvent evt;
+	while (true) {
+		evt = osSignalWait(osAnySignal, 1);  // Wait for signal indefinitely
+		if (evt.status == osEventSignal) {
+			CANMessage *msgToSend = osMailCAlloc(canDatagramsQueue, noWait);
+			if (msgToSend != NULL) {
+				msgToSend->header = rxMessageHeader;
+				memcpy(msgToSend->data, rxDataReceived, sizeof(rxDataReceived));
+				osMailPut(canDatagramsQueue, msgToSend);
+			}
+			osThreadYield();
+		} else {
+			osThreadYield();
+		}
+	}
+}
+
+void fordwardDatagramsThread(void const *argument) {
+	uint8_t serializedDatagram[100] = {0};
+	osEvent evt;
+	CANMessage *dequeuedMsg;
+	while (true) {
+		evt = osMailGet(canDatagramsQueue, 1);  // Wait for mail indefinitely
+		if (evt.status == osEventMail) {
+			dequeuedMsg = evt.value.p;
+			uint8_t lenSerialized = serializeDatagram(serializedDatagram, dequeuedMsg->header, dequeuedMsg->data);
+			HAL_UART_Transmit(&huart1, serializedDatagram, lenSerialized, HAL_MAX_DELAY);
+			HAL_GPIO_TogglePin(BLUE_LED_CANTX_GPIO_Port, BLUE_LED_CANTX_Pin);
+			osMailFree(canDatagramsQueue, dequeuedMsg);
+			osThreadYield();
+		} else {
+			osThreadYield();
+		}
+	}
+}
+
+void idleThread(void const *argument) {
+	while (true) {
+		HAL_GPIO_TogglePin(GREEN_LED_IDLE_GPIO_Port, GREEN_LED_IDLE_Pin);
+		osDelay(100);
+	}
+}
+
+/* USER CODE END 4 */

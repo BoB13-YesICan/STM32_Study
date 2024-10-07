@@ -1,0 +1,24 @@
+23:28:16 **** Incremental Build of configuration Debug for project STM32F407VGT6_CAN_Communication_RTOS ****
+make -j22 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+../Core/Src/main.c: In function 'serializeDatagram':
+../Core/Src/main.c:142:60: warning: format '%d' expects argument of type 'int', but argument 3 has type 'uint32_t' {aka 'long unsigned int'} [-Wformat=]
+  142 |     cursor += sprintf((char*) pExitBuffer + cursor, "DLC: %d ", receivedCANHeader.DLC);
+      |                                                           ~^    ~~~~~~~~~~~~~~~~~~~~~
+      |                                                            |                     |
+      |                                                            int                   uint32_t {aka long unsigned int}
+      |                                                           %ld
+arm-none-eabi-gcc -o "STM32F407VGT6_CAN_Communication_RTOS.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F407VGT6_CAN_Communication_RTOS\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F407VGT6_CAN_Communication_RTOS.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: STM32F407VGT6_CAN_Communication_RTOS.elf
+ 
+arm-none-eabi-size  STM32F407VGT6_CAN_Communication_RTOS.elf 
+arm-none-eabi-objdump -h -S STM32F407VGT6_CAN_Communication_RTOS.elf  > "STM32F407VGT6_CAN_Communication_RTOS.list"
+   text	   data	    bss	    dec	    hex	filename
+  43596	    472	  18440	  62508	   f42c	STM32F407VGT6_CAN_Communication_RTOS.elf
+Finished building: default.size.stdout
+ 
+Finished building: STM32F407VGT6_CAN_Communication_RTOS.list
+ 
+
+23:28:17 Build Finished. 0 errors, 1 warnings. (took 757ms)
+

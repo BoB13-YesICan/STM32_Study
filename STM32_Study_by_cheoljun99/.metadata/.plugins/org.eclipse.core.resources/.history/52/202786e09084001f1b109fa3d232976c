@@ -1,0 +1,347 @@
+/* USER CODE BEGIN Header */
+/**
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * This software component is licensed by ST under BSD 3-Clause license,
+ * the "License"; You may not use this file except in compliance with the
+ * License. You may obtain a copy of the License at:
+ *                        opensource.org/licenses/BSD-3-Clause
+ *
+ ******************************************************************************
+ */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "cmsis_os.h"
+
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include "stdio.h"
+#include "string.h"
+#include <inttypes.h>
+#include <stdlib.h>
+
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+CAN_HandleTypeDef hcan1;
+UART_HandleTypeDef huart1;
+osThreadId defaultTaskHandle;
+/* USER CODE BEGIN PV */
+
+// 불필요한 스레드 및 큐 제거
+osThreadId forwardDatagramTaskId;
+osThreadId receivedDatagramTaskId;
+
+CAN_RxHeaderTypeDef rxMessageHeader;
+uint8_t rxDataReceived[8];
+
+// 스니퍼 상태를 항상 활성화
+SnifferAtivityStatus snifferAtivityStatus = SNIFFER_ACTIVE;
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_CAN1_Init(void);
+static void MX_USART1_UART_Init(void);
+void StartDefaultTask(void const * argument);
+
+/* USER CODE BEGIN PFP */
+// 불필요한 함수 및 스레드 삭제
+void recieivedDatagramsThread(void const*);
+void idleThread(void const*);
+void setSinfferCANFilter(void);
+
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
+/* USER CODE BEGIN 0 */
+
+// CAN 데이터 포맷팅 및 UART로 전송
+void sendFormattedCANMessage(CAN_RxHeaderTypeDef header, uint8_t *data) {
+    char msgBuffer[128];
+
+    // 타임스탬프 (가상의 타임스탬프 값 추가)
+    uint32_t timestamp = HAL_GetTick(); // 현재 시간 (ms)
+
+    // CAN 메시지를 ASCII 형식으로 변환하여 UART로 출력
+    snprintf(msgBuffer, sizeof(msgBuffer),
+             "Timestamp: %lu ms, CAN ID: 0x%" PRIx32 ", DLC: %d, Data: ",
+             timestamp,
+             (header.IDE == CAN_ID_STD) ? header.StdId : header.ExtId,
+             header.DLC);
+
+    // 데이터 페이로드 추가
+    for (int i = 0; i < header.DLC; i++) {
+        char byteStr[4];
+        snprintf(byteStr, sizeof(byteStr), "%02X ", data[i]);
+        strcat(msgBuffer, byteStr);
+    }
+    strcat(msgBuffer, "\r\n");
+
+    // UART로 메시지 전송
+    HAL_UART_Transmit(&huart1, (uint8_t*)msgBuffer, strlen(msgBuffer), HAL_MAX_DELAY);
+
+    // USART 전송 후 LED 토글 (BLUE_LED_CANTX_Pin)
+    HAL_GPIO_TogglePin(BLUE_LED_CANTX_GPIO_Port, BLUE_LED_CANTX_Pin);
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+    if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxMessageHeader, rxDataReceived) == HAL_OK) {
+        if (snifferAtivityStatus == SNIFFER_ACTIVE) {
+            osSignalSet(receivedDatagramTaskId, osAnySignal); // 데이터 수신 시 스레드에 신호 전달
+        }
+    }
+
+    // CAN 데이터 수신 시 LED 토글 (RED_LED_CANRX_Pin)
+    HAL_GPIO_TogglePin(RED_LED_CANRX_GPIO_Port, RED_LED_CANRX_Pin);
+}
+
+void recieivedDatagramsThread(void const *argument) {
+    osEvent evt;
+
+    while (true) {
+        evt = osSignalWait(osAnySignal, 1); // CAN 메시지 수신 대기
+        if (evt.status == osEventSignal) {
+            sendFormattedCANMessage(rxMessageHeader, rxDataReceived); // 수신된 CAN 메시지를 UART로 전송
+        } else {
+            osThreadYield();
+        }
+    }
+}
+
+void idleThread(void const *argument) {
+    while (true) {
+        HAL_GPIO_TogglePin(GREEN_LED_IDLE_GPIO_Port, GREEN_LED_IDLE_Pin); // IDLE 상태에서 LED 깜빡임
+        osDelay(100);
+    }
+}
+/* USER CODE END 0 */
+
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void) {
+    HAL_Init();
+    SystemClock_Config();
+
+    MX_GPIO_Init();
+    MX_CAN1_Init();
+    MX_USART1_UART_Init();
+
+    /* USER CODE BEGIN 2 */
+    setSinfferCANFilter();
+
+    HAL_CAN_Start(&hcan1);
+    if (snifferAtivityStatus == SNIFFER_ACTIVE) {
+        HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING); // CAN 메시지 수신 대기
+    }
+
+    /* USER CODE END 2 */
+
+    /* USER CODE BEGIN RTOS_QUEUES */
+    // 불필요한 큐 생성 제거
+    /* USER CODE END RTOS_QUEUES */
+
+    /* Create the thread(s) */
+    /* definition and creation of defaultTask */
+    osThreadDef(defaultTask, StartDefaultTask, osPriorityNormal, 0, 128);
+    defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
+
+    /* USER CODE BEGIN RTOS_THREADS */
+    osThreadDef(receiveDatagramsTask, recieivedDatagramsThread, osPriorityNormal, 0, 640);
+    receivedDatagramTaskId = osThreadCreate(osThread(receiveDatagramsTask), NULL);
+
+    osThreadDef(idleTask, idleThread, osPriorityIdle, 0, 128);
+    idleTaskId = osThreadCreate(osThread(idleTask), NULL);
+    /* USER CODE END RTOS_THREADS */
+
+    /* Start scheduler */
+    osKernelStart(); // RTOS 스케줄러 시작
+
+    /* We should never get here as control is now taken by the scheduler */
+    /* Infinite loop */
+    /* USER CODE BEGIN WHILE */
+    while (1) {
+        // 무한 루프
+    }
+    /* USER CODE END WHILE */
+}
+
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+void StartDefaultTask(void const * argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/**
+  * @brief CAN1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CAN1_Init(void) {
+    hcan1.Instance = CAN1;
+    hcan1.Init.Prescaler = 12;
+    hcan1.Init.Mode = CAN_MODE_NORMAL;
+    hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
+    hcan1.Init.TimeSeg1 = CAN_BS1_11TQ;
+    hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
+    hcan1.Init.TimeTriggeredMode = DISABLE;
+    hcan1.Init.AutoBusOff = DISABLE;
+    hcan1.Init.AutoWakeUp = DISABLE;
+    hcan1.Init.AutoRetransmission = DISABLE;
+    hcan1.Init.ReceiveFifoLocked = DISABLE;
+    hcan1.Init.TransmitFifoPriority = DISABLE;
+    if (HAL_CAN_Init(&hcan1) != HAL_OK) {
+        Error_Handler();
+    }
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void) {
+    huart1.Instance = USART1;
+    huart1.Init.BaudRate = 115200;
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits = UART_STOPBITS_1;
+    huart1.Init.Parity = UART_PARITY_NONE;
+    huart1.Init.Mode = UART_MODE_TX_RX;
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+    if (HAL_UART_Init(&huart1) != HAL_OK) {
+        Error_Handler();
+    }
+}
+
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void) {
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    /* GPIO Ports Clock Enable */
+    __HAL_RCC_GPIOH_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    /*Configure GPIO pin Output Level */
+    HAL_GPIO_WritePin(GPIOD, GREEN_LED_IDLE_Pin|ORANGE_LED_SYSTEM_Pin|RED_LED_CANRX_Pin|BLUE_LED_CANTX_Pin, GPIO_PIN_RESET);
+
+    /*Configure GPIO pins : GREEN_LED_IDLE_Pin ORANGE_LED_SYSTEM_Pin RED_LED_CANRX_Pin BLUE_LED_CANTX_Pin */
+    GPIO_InitStruct.Pin = GREEN_LED_IDLE_Pin|ORANGE_LED_SYSTEM_Pin|RED_LED_CANRX_Pin|BLUE_LED_CANTX_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+}
+
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
+
+/* USER CODE BEGIN Header_StartDefaultTask */
+/**
+  * @brief  Function implementing the defaultTask thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartDefaultTask */
+void StartDefaultTask(void const * argument)
+{
+  /* USER CODE BEGIN 5 */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END 5 */
+}
+
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM6 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  /* USER CODE BEGIN Callback 0 */
+
+  /* USER CODE END Callback 0 */
+  if (htim->Instance == TIM6) {
+    HAL_IncTick();
+  }
+  /* USER CODE BEGIN Callback 1 */
+
+  /* USER CODE END Callback 1 */
+}
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
+  {
+  }
+  /* USER CODE END Error_Handler_Debug */
+}
+
+#ifdef  USE_FULL_ASSERT
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */

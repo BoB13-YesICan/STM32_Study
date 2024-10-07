@@ -45,7 +45,7 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h \
- C:/Users/cheoljun99/Desktop/STM32_reference/STM32_Study/STM32F407VGT6_CAN_Sniffer_RTOS/COBSLib/Inc/cobs.h
+ C:/Users/cheoljun99/Desktop/STM32_reference/STM32_Study/STM32_Study_by_cheoljun99/STM32F407VGT6_CAN_Sniffer_RTOS/COBSLib/Inc/cobs.h
 ../Core/Inc/main.h:
 ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h:
 ../Core/Inc/stm32f4xx_hal_conf.h:
@@ -93,4 +93,4 @@ Core/Src/main.o: ../Core/Src/main.c ../Core/Inc/main.h \
 ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h:
-C:/Users/cheoljun99/Desktop/STM32_reference/STM32_Study/STM32F407VGT6_CAN_Sniffer_RTOS/COBSLib/Inc/cobs.h:
+C:/Users/cheoljun99/Desktop/STM32_reference/STM32_Study/STM32_Study_by_cheoljun99/STM32F407VGT6_CAN_Sniffer_RTOS/COBSLib/Inc/cobs.h:

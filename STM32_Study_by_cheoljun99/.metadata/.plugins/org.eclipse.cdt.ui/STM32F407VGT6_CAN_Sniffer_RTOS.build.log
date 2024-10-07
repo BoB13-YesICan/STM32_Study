@@ -1,0 +1,10 @@
+23:19:54 **** Incremental Build of configuration Debug for project STM32F407VGT6_CAN_Sniffer_RTOS ****
+make -j22 all 
+arm-none-eabi-size  STM32F407VGT6_CAN_Sniffer_RTOS.elf 
+   text	   data	    bss	    dec	    hex	filename
+  35864	     96	  18440	  54400	   d480	STM32F407VGT6_CAN_Sniffer_RTOS.elf
+Finished building: default.size.stdout
+ 
+
+23:19:54 Build Finished. 0 errors, 0 warnings. (took 264ms)
+

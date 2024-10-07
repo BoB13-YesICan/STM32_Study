@@ -1,0 +1,253 @@
+/* USER CODE BEGIN Header */
+/**
+  ******************************************************************************
+  * @file           : main.c
+  * @brief          : Main program body
+  ******************************************************************************
+  * @attention
+  *
+  * <h2><center>&copy; Copyright (c) 2021 STMicroelectronics.
+  * All rights reserved.</center></h2>
+  *
+  * This software component is licensed by ST under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
+  *
+  ******************************************************************************
+  */
+/* USER CODE END Header */
+/* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "cmsis_os.h"
+#include "stdio.h"
+#include "string.h"
+#include "stdbool.h"
+#include <inttypes.h>
+
+/* Private typedef -----------------------------------------------------------*/
+typedef struct qCANMsg {
+    uint8_t data[8];
+    CAN_RxHeaderTypeDef header;
+} CANMessage;
+
+typedef enum {
+    SNIFFER_STOPPED = 0x00, SNIFFER_ACTIVE = 0x01,
+} SnifferAtivityStatus;
+
+/* Private define ------------------------------------------------------------*/
+#define SIZE_RX 20
+#define noWait 0
+
+/* Private variables ---------------------------------------------------------*/
+CAN_HandleTypeDef hcan1;
+UART_HandleTypeDef huart1;
+
+osThreadId forwardDatagramTaskId;
+osThreadId receivedDatagramTaskId;
+osThreadId idleTaskId;
+
+osMailQDef(canDatagramsQueue, 100, CANMessage);		// Define mail queue
+osMailQId canDatagramsQueue;
+
+// Peripherals ISR global variables
+CAN_RxHeaderTypeDef rxMessageHeader;
+uint8_t rxDataReceived[8];
+
+// Sneffer activity status variable
+SnifferAtivityStatus snifferAtivityStatus = SNIFFER_ACTIVE; // 스니퍼 항상 활성화
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+static void MX_GPIO_Init(void);
+static void MX_CAN1_Init(void);
+static void MX_USART1_UART_Init(void);
+void bootLEDIndicator(void);
+
+void fordwardDatagramsThread(void const*);
+void recieivedDatagramsThread(void const*);
+void idleThread(void const*);
+
+/* Private user code ---------------------------------------------------------*/
+#define NUMBER_BLINKS 20
+
+void bootLEDIndicator(void) {
+    int blinkCounter = 0;
+    while (blinkCounter < NUMBER_BLINKS) {
+        HAL_GPIO_TogglePin(ORANGE_LED_SYSTEM_GPIO_Port, ORANGE_LED_SYSTEM_Pin);
+        HAL_Delay(30);
+        blinkCounter++;
+    }
+    HAL_GPIO_WritePin(ORANGE_LED_SYSTEM_GPIO_Port, ORANGE_LED_SYSTEM_Pin, GPIO_PIN_SET);
+}
+
+void setSnifferCANFilter(void) {
+    /* Default filter - accept all to CAN_FIFO*/
+    CAN_FilterTypeDef sFilterConfig;
+    sFilterConfig.FilterBank = 0;
+    sFilterConfig.FilterIdHigh = 0x0000;
+    sFilterConfig.FilterIdLow = 0x0000;
+    sFilterConfig.FilterMaskIdHigh = 0x0000;
+    sFilterConfig.FilterMaskIdLow = 0x0000;
+    sFilterConfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+    sFilterConfig.FilterActivation = ENABLE;
+    sFilterConfig.FilterMode = CAN_FILTERMODE_IDMASK;
+    sFilterConfig.FilterScale = CAN_FILTERSCALE_32BIT;
+
+    HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig);
+}
+
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
+    if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxMessageHeader, rxDataReceived) == HAL_OK) {
+        if (snifferAtivityStatus == SNIFFER_ACTIVE) {
+            osSignalSet(receivedDatagramTaskId, osAnySignal);
+        }
+    }
+    HAL_GPIO_TogglePin(RED_LED_CANRX_GPIO_Port, RED_LED_CANRX_Pin);
+}
+
+void HAL_UART_Transmit_CAN(CAN_RxHeaderTypeDef *header, uint8_t *data) {
+    char uartMessage[64];
+    int len = 0;
+
+    if (header->IDE == CAN_ID_STD) {
+        len = snprintf(uartMessage, sizeof(uartMessage), "ID: 0x%03X DLC: %d Data: ", header->StdId, header->DLC);
+    } else {
+        len = snprintf(uartMessage, sizeof(uartMessage), "ID: 0x%08X DLC: %d Data: ", header->ExtId, header->DLC);
+    }
+
+    for (int i = 0; i < header->DLC; i++) {
+        len += snprintf(&uartMessage[len], sizeof(uartMessage) - len, "%02X ", data[i]);
+    }
+    snprintf(&uartMessage[len], sizeof(uartMessage) - len, "\r\n");
+
+    HAL_UART_Transmit(&huart1, (uint8_t*)uartMessage, strlen(uartMessage), HAL_MAX_DELAY);
+}
+
+void recieivedDatagramsThread(void const *argument) {
+    osEvent evt;
+    while (true) {
+        evt = osSignalWait(osAnySignal, osWaitForever);
+        if (evt.status == osEventSignal) {
+            CANMessage *msgToSend = osMailCAlloc(canDatagramsQueue, noWait);
+            if (msgToSend != NULL) {
+                msgToSend->header = rxMessageHeader;
+                memcpy(msgToSend->data, rxDataReceived, sizeof(rxDataReceived));
+                osMailPut(canDatagramsQueue, msgToSend);
+            }
+            osThreadYield();
+        }
+    }
+}
+
+void fordwardDatagramsThread(void const *argument) {
+    osEvent evt;
+    CANMessage *dequeuedMsg;
+    while (true) {
+        evt = osMailGet(canDatagramsQueue, osWaitForever);
+        if (evt.status == osEventMail) {
+            dequeuedMsg = evt.value.p;
+            HAL_UART_Transmit_CAN(&dequeuedMsg->header, dequeuedMsg->data);
+            osMailFree(canDatagramsQueue, dequeuedMsg);
+            osThreadYield();
+        }
+    }
+}
+
+void idleThread(void const *argument) {
+    while (true) {
+        HAL_GPIO_TogglePin(GREEN_LED_IDLE_GPIO_Port, GREEN_LED_IDLE_Pin);
+        osDelay(100);
+    }
+}
+
+/* Main Function */
+int main(void) {
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    MX_CAN1_Init();
+    MX_USART1_UART_Init();
+
+    setSnifferCANFilter();
+
+    /* Start CAN */
+    HAL_CAN_Start(&hcan1);
+    HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+
+    /* Create Threads */
+    osThreadDef(forwardDatagramsTask, fordwardDatagramsThread, osPriorityNormal, 0, 640);
+    forwardDatagramTaskId = osThreadCreate(osThread(forwardDatagramsTask), NULL);
+
+    osThreadDef(receiveDatagramsTask, recieivedDatagramsThread, osPriorityNormal, 0, 640);
+    receivedDatagramTaskId = osThreadCreate(osThread(receiveDatagramsTask), NULL);
+
+    osThreadDef(idleTask, idleThread, osPriorityIdle, 0, 128);
+    idleTaskId = osThreadCreate(osThread(idleTask), NULL);
+
+    bootLEDIndicator();
+
+    osKernelStart();
+
+    while (1) {
+    }
+}
+
+/* Peripheral Initialization Functions */
+static void MX_CAN1_Init(void) {
+    hcan1.Instance = CAN1;
+    hcan1.Init.Prescaler = 12;
+    hcan1.Init.Mode = CAN_MODE_NORMAL;
+    hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
+    hcan1.Init.TimeSeg1 = CAN_BS1_11TQ;
+    hcan1.Init.TimeSeg2 = CAN_BS2_2TQ;
+    hcan1.Init.TimeTriggeredMode = DISABLE;
+    hcan1.Init.AutoBusOff = DISABLE;
+    hcan1.Init.AutoWakeUp = DISABLE;
+    hcan1.Init.AutoRetransmission = DISABLE;
+    hcan1.Init.ReceiveFifoLocked = DISABLE;
+    hcan1.Init.TransmitFifoPriority = DISABLE;
+    if (HAL_CAN_Init(&hcan1) != HAL_OK) {
+        Error_Handler();
+    }
+}
+
+static void MX_USART1_UART_Init(void) {
+    huart1.Instance = USART1;
+    huart1.Init.BaudRate = 115200;
+    huart1.Init.WordLength = UART_WORDLENGTH_8B;
+    huart1.Init.StopBits = UART_STOPBITS_1;
+    huart1.Init.Parity = UART_PARITY_NONE;
+    huart1.Init.Mode = UART_MODE_TX_RX;
+    huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+    if (HAL_UART_Init(&huart1) != HAL_OK) {
+        Error_Handler();
+    }
+}
+
+static void MX_GPIO_Init(void) {
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    __HAL_RCC_GPIOH_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+
+    HAL_GPIO_WritePin(GPIOD, GREEN_LED_IDLE_Pin | ORANGE_LED_SYSTEM_Pin | RED_LED_CANRX_Pin | BLUE_LED_CANTX_Pin, GPIO_PIN_RESET);
+
+    GPIO_InitStruct.Pin = GREEN_LED_IDLE_Pin | ORANGE_LED_SYSTEM_Pin | RED_LED_CANRX_Pin | BLUE_LED_CANTX_Pin;
+    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+}
+
+/* Error Handler */
+void Error_Handler(void) {
+    __disable_irq();
+    while (1) {
+    }
+}
+
+/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

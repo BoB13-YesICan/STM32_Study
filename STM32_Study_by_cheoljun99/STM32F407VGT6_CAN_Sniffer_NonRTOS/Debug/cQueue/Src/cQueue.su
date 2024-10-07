@@ -1,0 +1,8 @@
+../cQueue/Src/cQueue.c:45:33:q_init	32	static
+../cQueue/Src/cQueue.c:66:31:q_kill	16	static
+../cQueue/Src/cQueue.c:73:31:q_flush	16	static
+../cQueue/Src/cQueue.c:81:31:q_push	48	static
+../cQueue/Src/cQueue.c:100:31:q_pop	40	static
+../cQueue/Src/cQueue.c:123:31:q_peek	32	static
+../cQueue/Src/cQueue.c:146:31:q_drop	40	static
+../cQueue/Src/cQueue.c:158:31:q_peekIdx	40	static

@@ -1,0 +1,2 @@
+../COBSLib/Src/cobs.c:42:20:cobs_encode	64	static
+../COBSLib/Src/cobs.c:142:20:cobs_decode	64	static

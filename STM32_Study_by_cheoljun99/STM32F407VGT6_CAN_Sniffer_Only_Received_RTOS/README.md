@@ -17,7 +17,7 @@
 ## 회고
 본 프로젝트는 FreeRTOS를 이해를 바탕으로 CAN Sniffer를 RTOS로 구현한 프로젝트이며 오직 수신 기능만을 구현한 프로젝트이다.
 
-![comment1.gif](comment1.gif)
+![comment1.png](comment1.png)
 
 위 그림이 RTOS 시스템의 작동흐름을 보여주는 블록 다이어그램으로 동작 원리는 다음과 같다.
 

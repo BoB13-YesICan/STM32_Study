@@ -254,9 +254,9 @@ void processMessageComand(char *decodedCommand) {
 
 void processBitRateCommand(char *decodedCommand) {
 
-	uint8_t bitrateSrt[3];
-	substr((char*) decodedCommand, (char*) bitrateSrt, 1, 3);
-	int bitRate = toInteger(bitrateSrt, 3);
+	uint8_t bitrateSrt[4];
+	substr((char*) decodedCommand, (char*) bitrateSrt, 1, 4);
+	int bitRate = toInteger(bitrateSrt, 4);
 
 	bool idetified = false;
 
@@ -287,6 +287,10 @@ void processBitRateCommand(char *decodedCommand) {
 		break;
 	case 500:
 		hcan1.Init.Prescaler = 6;
+		idetified = true;
+		break;
+	case 1000:
+		hcan1.Init.Prescaler = 3;
 		idetified = true;
 		break;
 	}
@@ -790,7 +794,7 @@ void recieivedDatagramsThread(void const *argument) {
 			CANMessage *msgToSend = osMailCAlloc(canDatagramsQueue, noWait);
 			if (msgToSend != NULL) {
 				 msgToSend->header = rxMessageHeader;
-				 strcpy((char*) msgToSend->data, (char*) rxDataReceived);
+				 memcpy(msgToSend->data, rxDataReceived, sizeof(rxDataReceived));
 				 osMailPut(canDatagramsQueue, msgToSend);
 			}
 			osThreadYield();

@@ -62,8 +62,8 @@ all: main-build
 main-build: STM32F407VGT6_CAN_Sniffer_NonRTOS.elf secondary-outputs
 
 # Tool invocations
-STM32F407VGT6_CAN_Sniffer_NonRTOS.elf STM32F407VGT6_CAN_Sniffer_NonRTOS.map: $(OBJS) $(USER_OBJS) C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32F407VGT6_CAN_Sniffer_NonRTOS\STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "STM32F407VGT6_CAN_Sniffer_NonRTOS.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32F407VGT6_CAN_Sniffer_NonRTOS\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F407VGT6_CAN_Sniffer_NonRTOS.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+STM32F407VGT6_CAN_Sniffer_NonRTOS.elf STM32F407VGT6_CAN_Sniffer_NonRTOS.map: $(OBJS) $(USER_OBJS) C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F407VGT6_CAN_Sniffer_NonRTOS\STM32F407VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "STM32F407VGT6_CAN_Sniffer_NonRTOS.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F407VGT6_CAN_Sniffer_NonRTOS\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F407VGT6_CAN_Sniffer_NonRTOS.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

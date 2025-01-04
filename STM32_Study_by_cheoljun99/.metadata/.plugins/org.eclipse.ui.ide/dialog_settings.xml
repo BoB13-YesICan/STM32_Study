@@ -7,6 +7,8 @@
 		<item key="WizardProjectsImportPage.STORE_CLOSE_CREATED_PROJECTS_ID" value="false"/>
 		<item key="WizardProjectsImportPage.STORE_HIDE_CONFLICTING_PROJECTS_ID" value="false"/>
 		<list key="WizardProjectsImportPage.STORE_DIRECTORIES">
+			<item value="C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F401CCU6_UART_Communication"/>
+			<item value="C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F407VGT6_CAN_Sniffer_NonRTOS"/>
 			<item value="C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Test\RAMNV1"/>
 			<item value="C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F407VGT6_CAN_Sniffer_Only_Received_RTOS"/>
 			<item value="C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F407VGT6_CAN_Sniffer_RTOS"/>

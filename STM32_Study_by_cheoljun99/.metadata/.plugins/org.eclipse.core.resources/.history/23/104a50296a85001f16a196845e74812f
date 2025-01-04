@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
 #include "string.h"
+#include "cobs.h"
 #include "stdbool.h"
 #include <inttypes.h>
 
@@ -32,6 +33,10 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+typedef struct qCmd {
+	uint8_t commnddBuff[20];
+	uint8_t commandSize;
+} SnniferCommand;
 
 typedef struct qCANMsg {
 	uint8_t data[8];
@@ -59,29 +64,34 @@ typedef enum {
 /* Private variables ---------------------------------------------------------*/
 CAN_HandleTypeDef hcan1;
 
-TIM_HandleTypeDef htim1;
-
 UART_HandleTypeDef huart1;
 
 osThreadId defaultTaskHandle;
 /* USER CODE BEGIN PV */
 
+osThreadId receiveCommandsTaskId;
+osThreadId executeCommmandtaskID;
 osThreadId forwardDatagramTaskId;
 osThreadId receivedDatagramTaskId;
 
 osThreadId idleTaskId;
 
+osMailQDef(pendingCommandsQueue, 100, SnniferCommand); // Define pendingCommandsQueue
+osMailQId pendingCommandsQueue;
+
 osMailQDef(canDatagramsQueue, 100, CANMessage);		// Define mail queue
 osMailQId canDatagramsQueue;
 
 // Peripherals ISR global variables
+uint8_t rxUARTBuff[1] = { 0 };
 
 CAN_RxHeaderTypeDef rxMessageHeader;
 uint8_t rxDataReceived[8];
 
 
+
 // Sneffer activity status variable
-SnifferAtivityStatus snifferAtivityStatus = SNIFFER_ACTIVE;
+SnifferAtivityStatus snifferAtivityStatus = SNIFFER_STOPPED;
 
 /* USER CODE END PV */
 
@@ -90,12 +100,13 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_CAN1_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_TIM1_Init(void);
 void StartDefaultTask(void const * argument);
 
 /* USER CODE BEGIN PFP */
 void bootLEDIndicator(void);
 
+void executeCommandThread(void const*);
+void rcvCommandThread(void const*);
 void fordwardDatagramsThread(void const*);
 void recieivedDatagramsThread(void const*);
 void idleThread(void const*);
@@ -115,7 +126,46 @@ void bootLEDIndicator(void) {
 	}
 	HAL_GPIO_WritePin(ORANGE_LED_SYSTEM_GPIO_Port, ORANGE_LED_SYSTEM_Pin, GPIO_PIN_SET);
 }
+void substr(char *str, char *sub, int start, int len) {
+	memcpy(sub, &str[start], len);
+	sub[len] = '\0';
+}
 
+int toInteger(uint8_t *stringToConvert, int len) {
+	int counter = len - 1;
+	int exp = 1;
+	int value = 0;
+	while (counter >= 0) {
+		value = value + (stringToConvert[counter] - '0') * exp;
+		exp = exp * 10;
+		counter--;
+	}
+	return value;
+}
+uint32_t sendCANMessage(uint8_t dlc, uint32_t msgID, bool isRTR,bool isStandard, uint8_t *data) {
+
+	uint32_t TxMailbox;
+	CAN_TxHeaderTypeDef pHeader;
+	pHeader.DLC = dlc;
+
+	if (isStandard) {
+		pHeader.IDE = CAN_ID_STD;
+		pHeader.StdId = msgID;
+	} else {
+		pHeader.IDE = CAN_ID_EXT;
+		pHeader.ExtId = msgID;
+	}
+	if (isRTR) {
+		pHeader.RTR = CAN_RTR_REMOTE;
+	} else {
+		pHeader.RTR = CAN_RTR_DATA;
+	}
+
+	HAL_GPIO_TogglePin(BLUE_LED_CANTX_GPIO_Port,BLUE_LED_CANTX_Pin);
+
+	HAL_CAN_AddTxMessage(&hcan1, &pHeader, data, &TxMailbox);
+	return TxMailbox;
+}
 
 void setSinfferCANFilter(void) {
 	/* Default filter - accept all to CAN_FIFO*/
@@ -135,93 +185,276 @@ void setSinfferCANFilter(void) {
 	HAL_CAN_ConfigFilter(&hcan1, &sFilterConfig);
 }
 
+void processMessageComand(char *decodedCommand) {
+	uint8_t cursor = 1;
 
-uint8_t serializeDatagram(uint8_t *pExitBuffer, CAN_RxHeaderTypeDef receivedCANHeader, uint8_t *rxData) {
-    uint8_t cursor = 0;
+	if (decodedCommand[cursor] == 'T') {
+		cursor++;
+		uint8_t messageID_str[9];
+		substr((char*) decodedCommand, (char*) messageID_str, cursor, 9);
 
-<<<<<<< HEAD
-    // TIM1?ï¿½ï¿½ ë§ˆì´?ï¿½ï¿½ë¡œì´ˆ ê°’ì„ ë¨¼ï¿½? ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½
-    uint32_t microseconds = __HAL_TIM_GET_COUNTER(&htim1);  // TIM1 ???ï¿½ï¿½ï¿½? ì¹´ìš´?ï¿½ï¿½ ï¿½? (ë§ˆì´?ï¿½ï¿½ë¡œì´ˆ ?ï¿½ï¿½?ï¿½ï¿½)
+		int msgID = toInteger(messageID_str, 9);
+		cursor += 9;
 
-    // ï¿½? ?ï¿½ï¿½ HAL_GetTick()?ï¿½ï¿½ ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ ï¿½?ë¦¬ì´ˆ ê°’ì„ ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½
-    uint32_t millis = HAL_GetTick();
+		uint8_t dlc_str[1];
+		substr((char*) decodedCommand, (char*) dlc_str, cursor, 1);
+		uint8_t dlc = atoi((char*) dlc_str);
 
-    // ï¿½?ë¦¬ì´ˆ ê°’ì„ ?ï¿½ï¿½/ï¿½?/ì´ˆë¡œ ï¿½??ï¿½ï¿½
-    uint32_t ms = millis % 1000;           // ï¿½?ë¦¬ì´ˆ (0-999)
-    uint32_t seconds = (millis / 1000) % 60;   // ï¿½? (0-59)
-    uint32_t minutes = (millis / 60000) % 60;  // ï¿½? (0-59)
-    uint32_t hours = (millis / 3600000) % 24;  // ?ï¿½ï¿½ï¿½? (0-23)
+		cursor++;
+		uint8_t data[8];
+		substr((char*) decodedCommand, (char*) data, cursor, 8);
 
-    // HH:MM:SS.mmm.uuu ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ï¿½? ???ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ ì¶œë ¥
-    cursor += sprintf((char*) pExitBuffer + cursor, "[%02lu:%02lu:%02lu.%03lu.%03lu] ",
-                      hours, minutes, seconds, ms, microseconds);
+		sendCANMessage(dlc, msgID, false, false, data);
 
-    // CAN ?ï¿½ï¿½ë³„ìž ì¶œë ¥ (?ï¿½ï¿½?ï¿½ï¿½ ID ?ï¿½ï¿½?ï¿½ï¿½ ?ï¿½ï¿½ï¿½? ID)
-=======
-    // TIM1?˜ ë§ˆì´?¬ë¡œì´ˆ ê°’ì„ ë¨¼ì? ?½?Š”?‹¤
-    uint32_t microseconds = __HAL_TIM_GET_COUNTER(&htim1);  // TIM1 ???´ë¨? ì¹´ìš´?„° ê°? (ë§ˆì´?¬ë¡œì´ˆ ?‹¨?œ„)
+	} else if (decodedCommand[cursor] == 'R') {
+		cursor++;
+		uint8_t messageID_str[9];
+		substr((char*) decodedCommand, (char*) messageID_str, cursor, 9);
 
-    // ê·? ?›„ HAL_GetTick()?„ ?‚¬?š©?•´ ë°?ë¦¬ì´ˆ ê°’ì„ ?½?Š”?‹¤
-    uint32_t millis = HAL_GetTick();
+		int msgID = toInteger(messageID_str, 9);
+		cursor += 9;
 
-    // ë°?ë¦¬ì´ˆ ê°’ì„ ?‹œ/ë¶?/ì´ˆë¡œ ë³??™˜
-    uint32_t ms = millis % 1000;           // ë°?ë¦¬ì´ˆ (0-999)
-    uint32_t seconds = (millis / 1000) % 60;   // ì´? (0-59)
-    uint32_t minutes = (millis / 60000) % 60;  // ë¶? (0-59)
-    uint32_t hours = (millis / 3600000) % 24;  // ?‹œê°? (0-23)
+		uint8_t dlc_str[1];
+		substr((char*) decodedCommand, (char*) dlc_str, cursor, 1);
+		uint8_t dlc = toInteger(dlc_str, 1);
 
-    // HH:MM:SS.mmm.uuu ?˜•?‹?œ¼ë¡? ???ž„?Š¤?ƒ¬?”„ ì¶œë ¥
-    cursor += sprintf((char*) pExitBuffer + cursor, "[%02lu:%02lu:%02lu.%03lu.%03lu] ",
-                      hours, minutes, seconds, ms, microseconds);
+		sendCANMessage(dlc, msgID, true, false, 0x00);
+	} else if (decodedCommand[cursor] == 't') {
+		cursor++;
+		uint8_t messageID_str[4];
+		substr((char*) decodedCommand, (char*) messageID_str, cursor, 4);
+		int msgID = toInteger(messageID_str, 4);
+		cursor += 4;
 
-    // CAN ?‹ë³„ìž ì¶œë ¥ (?™•?ž¥ ID ?˜?Š” ?‘œì¤? ID)
->>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
-    if (receivedCANHeader.IDE == CAN_ID_EXT) {
-        cursor += sprintf((char*) pExitBuffer + cursor, "EXT CAN ID: 0x%" PRIx32 " ", receivedCANHeader.ExtId);
-    } else {
-        cursor += sprintf((char*) pExitBuffer + cursor, "STD CAN ID: 0x%" PRIx32 " ", receivedCANHeader.StdId);
-    }
+		uint8_t dlc_str[1];
+		substr((char*) decodedCommand, (char*) dlc_str, cursor, 1);
+		uint8_t dlc = toInteger(dlc_str, 1);
 
-    // DLC (Data Length Code) ì¶œë ¥
-    cursor += sprintf((char*) pExitBuffer + cursor, "DLC: %lu ", (unsigned long)receivedCANHeader.DLC);
+		cursor++;
+		uint8_t data[8];
+		substr((char*) decodedCommand, (char*) data, cursor, 8);
 
-<<<<<<< HEAD
-    // ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ ì¶œë ¥ (?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ ê²½ìš°)
-=======
-    // ?°?´?„° ì¶œë ¥ (?°?´?„° ?”„? ˆ?ž„?¸ ê²½ìš°)
->>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
-    if (receivedCANHeader.RTR == CAN_RTR_DATA) {
-        cursor += sprintf((char*) pExitBuffer + cursor, "Data: ");
-        for (int i = 0; i < receivedCANHeader.DLC; i++) {
-            cursor += sprintf((char*) pExitBuffer + cursor, "%02X ", rxData[i]);
-        }
-    }
+		sendCANMessage(dlc, msgID, false, true, data);
 
-<<<<<<< HEAD
-    // ?ï¿½ï¿½?ï¿½ï¿½ ê°œí–‰ ì¶”ï¿½?
-=======
-    // ??— ê°œí–‰ ì¶”ê?
->>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
-    cursor += sprintf((char*) pExitBuffer + cursor, "\r\n");
+	} else if (decodedCommand[cursor] == 'r') {
+		cursor++;
+		uint8_t messageID_str[4];
+		substr((char*) decodedCommand, (char*) messageID_str, cursor, 4);
+		int msgID = toInteger(messageID_str, 4);
+		cursor += 4;
 
-    return cursor;
+		uint8_t dlc_str[1];
+		substr((char*) decodedCommand, (char*) dlc_str, cursor, 1);
+		uint8_t dlc = atoi((char*) dlc_str);
+
+		sendCANMessage(dlc, msgID, true, true, 0x00);
+	}
+
 }
 
+void processBitRateCommand(char *decodedCommand) {
+
+	uint8_t bitrateSrt[3];
+	substr((char*) decodedCommand, (char*) bitrateSrt, 1, 3);
+	int bitRate = toInteger(bitrateSrt, 3);
+
+	bool idetified = false;
+
+	switch (bitRate) {
+	case 10:
+		hcan1.Init.Prescaler = 300;
+		idetified = true;
+		break;
+	case 20:
+		hcan1.Init.Prescaler = 150;
+		idetified = true;
+		break;
+	case 50:
+		hcan1.Init.Prescaler = 60;
+		idetified = true;
+		break;
+	case 100:
+		hcan1.Init.Prescaler = 30;
+		idetified = true;
+		break;
+	case 125:
+		hcan1.Init.Prescaler = 24;
+		idetified = true;
+		break;
+	case 250:
+		hcan1.Init.Prescaler = 12;
+		idetified = true;
+		break;
+	case 500:
+		hcan1.Init.Prescaler = 6;
+		idetified = true;
+		break;
+	}
+	if (idetified) {
+		HAL_CAN_DeInit(&hcan1);
+		HAL_CAN_Init(&hcan1);
+		setSinfferCANFilter();
+		HAL_CAN_Start(&hcan1);
+		if (snifferAtivityStatus != SNIFFER_STOPPED) {
+			HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+		}
+	}
+}
+void processLoopBackModeCommand(char *decodedCommand) {
+
+	uint8_t mode[2];
+	bool idetified = false;
+	substr((char*) decodedCommand, (char*) mode, 1, 2);
+	if (!strcmp((char*) mode, "LB")) {
+		hcan1.Init.Mode = CAN_MODE_LOOPBACK;
+		idetified = true;
+	} else if (!strcmp((char*) mode, "SM")) {
+		hcan1.Init.Mode = CAN_MODE_SILENT;
+		idetified = true;
+	} else if (!strcmp((char*) mode, "NM")) {
+		hcan1.Init.Mode = CAN_MODE_NORMAL;
+		idetified = true;
+	} else if (!strcmp((char*) mode, "SL")) {
+		hcan1.Init.Mode = CAN_MODE_SILENT_LOOPBACK;
+		idetified = true;
+	}
+	if (idetified) {
+		HAL_CAN_DeInit(&hcan1);
+		HAL_CAN_Init(&hcan1);
+		setSinfferCANFilter();
+		HAL_CAN_Start(&hcan1);
+		if (snifferAtivityStatus != SNIFFER_STOPPED) {
+			HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+		}
+
+	}
+}
+
+void processActivitySniferComand(char *decodedCommand) {
+
+	uint8_t activityMode[3];
+	substr((char*) decodedCommand, (char*) activityMode, 1, 3);
+
+	if (!strcmp((char*) activityMode, "ON_")) {
+		snifferAtivityStatus = SNIFFER_ACTIVE;
+		HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+
+	}
+
+	else if (!strcmp((char*) activityMode, "OFF")) {
+		HAL_CAN_DeactivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+		snifferAtivityStatus = SNIFFER_STOPPED;
+
+	}
+}
+void processRebootCommand() {
+	NVIC_SystemReset();
+}
+
+void setDatagramTypeIdentifer(uint32_t ide, uint32_t rtr, uint8_t *pExitBuffer,
+		uint8_t *pCursor) {
+	if (ide == CAN_ID_STD) {
+		if (rtr == CAN_RTR_DATA) {
+			pExitBuffer[*pCursor] = 't';
+		} else if (rtr == CAN_RTR_REMOTE) {
+			pExitBuffer[*pCursor] = 'r';
+		}
+	} else if (ide == CAN_ID_EXT) {
+
+		if (rtr == CAN_RTR_DATA) {
+			pExitBuffer[*pCursor] = 'T';
+		} else if (rtr == CAN_RTR_REMOTE) {
+			pExitBuffer[*pCursor] = 'R';
+		}
+	}
+	*pCursor = *pCursor + 1;
+}
+
+void setFormatedDatagramIdentifer(uint32_t idNum, uint8_t *pExitBuffer,uint8_t *pCursor, int len) {
+
+	char *id = (char*) pvPortMalloc(sizeof(char) * (len + 1));
+	int numOfDigits = 0;
+	int valueToConsume = idNum;
+
+	while (valueToConsume != 0) {
+		valueToConsume /= 10;     // n = n/10
+		++numOfDigits;
+	}
+
+	sprintf(id + (len - numOfDigits), "%d", (int) idNum);
+	for (int eraser = 0; eraser < (len - numOfDigits); eraser++) {
+		id[eraser] = '0';
+	}
+	strcpy((char*) pExitBuffer + *pCursor, id);
+	vPortFree(id);
+	*pCursor = *pCursor + len;
+}
+
+void setDatagramIdentifer(CAN_RxHeaderTypeDef receivedCANHeader,
+		uint8_t *pExitBuffer, uint8_t *pCursor) {
+	if (receivedCANHeader.IDE == CAN_ID_EXT) {
+		setFormatedDatagramIdentifer(receivedCANHeader.ExtId, pExitBuffer,
+				pCursor, 9);
+	}
+	if (receivedCANHeader.IDE == CAN_ID_STD) {
+		setFormatedDatagramIdentifer(receivedCANHeader.StdId, pExitBuffer,
+				pCursor, 4);
+	}
+}
+
+void setDLC(uint32_t dlc, uint8_t *pExitBuffer, uint8_t *pCursor) {
+	sprintf((char*) pExitBuffer + *pCursor, "%d", (int) dlc);
+	*pCursor = *pCursor + 1;
+}
+
+void setData(uint8_t *data, int dlc, uint8_t *pExitBuffer, uint8_t *pCursor) {
+	for (int counter = 0; counter < dlc; counter++) {
+		pExitBuffer[*pCursor + counter] = data[counter];
+	}
+	*pCursor = *pCursor + dlc;
+}
+
+uint8_t serializeDatagram(uint8_t *pExitBuffer,CAN_RxHeaderTypeDef receivedCANHeader, uint8_t *rxData) {
+
+	uint8_t cursor = 0;
+
+	setDatagramTypeIdentifer(receivedCANHeader.IDE, receivedCANHeader.RTR,
+			pExitBuffer, &cursor);
+	setDatagramIdentifer(receivedCANHeader, pExitBuffer, &cursor);
+	setDLC(receivedCANHeader.DLC, pExitBuffer, &cursor);
+	if (receivedCANHeader.RTR == CAN_RTR_DATA) {
+		setData(rxData, receivedCANHeader.DLC, pExitBuffer, &cursor);
+	}
+
+	return cursor;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+	if (huart->Instance == huart1.Instance) {
+		osSignalSet(receiveCommandsTaskId, osAnySignal);
+	}
+}
 
 
  void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
   	if (HAL_CAN_GetRxMessage(&hcan1, CAN_RX_FIFO0, &rxMessageHeader,rxDataReceived) == HAL_OK) {
   		if (snifferAtivityStatus == SNIFFER_ACTIVE) {
-<<<<<<< HEAD
-  			 // ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ CAN ?ï¿½ï¿½?ï¿½ï¿½?ï¿½ï¿½ï¿½? UARTï¿½? ì¶œë ¥ (ï¿½??ï¿½ï¿½?ï¿½ï¿½ ìµœì†Œ ?ï¿½ï¿½?ï¿½ï¿½ï¿½? ISR?ï¿½ï¿½?ï¿½ï¿½ ?ï¿½ï¿½?ï¿½ï¿½)
-=======
-  			 // ?ˆ˜?‹ ?œ CAN ?°?´?„°ë¥? UARTë¡? ì¶œë ¥ (ê°??Š¥?•œ ìµœì†Œ ?ž‘?—…ë§? ISR?—?„œ ?ˆ˜?–‰)
->>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
   			osSignalSet(receivedDatagramTaskId, osAnySignal);
 
   		}
   	}
   	HAL_GPIO_TogglePin(RED_LED_CANRX_GPIO_Port,RED_LED_CANRX_Pin);
+
+  		// USART1_TX ë””ë²„ê¹… ì½”ë“œ
+//  	char testMessage[] = "Hello, USART1!\r\n";
+//  	HAL_UART_Transmit(&huart3, (uint8_t*)testMessage, strlen(testMessage), HAL_MAX_DELAY);
+//  	char debugMessage[50];
+//  	if (rxMessageHeader.IDE == CAN_ID_STD) {
+//  		sprintf(debugMessage, "Standard CAN ID: 0x%" PRIx32 "\r\n", rxMessageHeader.StdId);
+//  	} else {
+//  		sprintf(debugMessage, "Extended CAN ID: 0x%" PRIx32 "\r\n", rxMessageHeader.ExtId);
+//  	}
+//  	HAL_UART_Transmit(&huart3, (uint8_t*)debugMessage, strlen(debugMessage), HAL_MAX_DELAY);
 
  }
 
@@ -257,15 +490,15 @@ int main(void)
   MX_GPIO_Init();
   MX_CAN1_Init();
   MX_USART1_UART_Init();
-  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-  setSinfferCANFilter();
-  HAL_CAN_Start(&hcan1);
-  HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+	HAL_UART_Receive_IT(&huart1, rxUARTBuff, 1);
+	setSinfferCANFilter();
 
-  // Start TIM1 for microsecond timestamping
-  HAL_TIM_Base_Start(&htim1);
-
+	/*Original code */
+	HAL_CAN_Start(&hcan1);
+	if (snifferAtivityStatus != SNIFFER_STOPPED) {
+		HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
+	}
 
 	/* Code to make a state sniffer state without using a dedicated GUI app*/
 //	HAL_CAN_Start(&hcan1);
@@ -288,7 +521,8 @@ int main(void)
   /* USER CODE END RTOS_TIMERS */
 
   /* USER CODE BEGIN RTOS_QUEUES */
-  canDatagramsQueue = osMailCreate(osMailQ(canDatagramsQueue), NULL);
+	pendingCommandsQueue = osMailCreate(osMailQ(pendingCommandsQueue), NULL); // create pendingCommandsQueue
+	canDatagramsQueue = osMailCreate(osMailQ(canDatagramsQueue), NULL);
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -298,16 +532,22 @@ int main(void)
 
   /* USER CODE BEGIN RTOS_THREADS */
 
-  osThreadDef(forwardDatagramsTask, fordwardDatagramsThread, osPriorityNormal,0, 640);
-  forwardDatagramTaskId = osThreadCreate(osThread(forwardDatagramsTask),NULL);
+	osThreadDef(rcvCommandTask, rcvCommandThread, osPriorityRealtime, 0, 128);
+	receiveCommandsTaskId = osThreadCreate(osThread(rcvCommandTask), NULL);
 
-  osThreadDef(receiveDatagramsTask, recieivedDatagramsThread,osPriorityNormal, 0, 640);
-  receivedDatagramTaskId = osThreadCreate(osThread(receiveDatagramsTask),NULL);
+	osThreadDef(executeCommandTask, executeCommandThread, osPriorityRealtime, 0,128);
+	executeCommmandtaskID = osThreadCreate(osThread(executeCommandTask), NULL);
 
-  osThreadDef(idleTask, idleThread, osPriorityIdle, 0, 128);
-  idleTaskId = osThreadCreate(osThread(idleTask), NULL);
+	osThreadDef(forwardDatagramsTask, fordwardDatagramsThread, osPriorityNormal,0, 640);
+	forwardDatagramTaskId = osThreadCreate(osThread(forwardDatagramsTask),NULL);
 
-  bootLEDIndicator();
+	osThreadDef(receiveDatagramsTask, recieivedDatagramsThread,osPriorityNormal, 0, 640);
+	receivedDatagramTaskId = osThreadCreate(osThread(receiveDatagramsTask),NULL);
+
+	osThreadDef(idleTask, idleThread, osPriorityIdle, 0, 128);
+	idleTaskId = osThreadCreate(osThread(idleTask), NULL);
+
+	bootLEDIndicator();
 
   /* USER CODE END RTOS_THREADS */
 
@@ -384,7 +624,7 @@ static void MX_CAN1_Init(void)
 
   /* USER CODE END CAN1_Init 1 */
   hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 3;
+  hcan1.Init.Prescaler = 12;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SyncJumpWidth = CAN_SJW_1TQ;
   hcan1.Init.TimeSeg1 = CAN_BS1_11TQ;
@@ -402,52 +642,6 @@ static void MX_CAN1_Init(void)
   /* USER CODE BEGIN CAN1_Init 2 */
 
   /* USER CODE END CAN1_Init 2 */
-
-}
-
-/**
-  * @brief TIM1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM1_Init(void)
-{
-
-  /* USER CODE BEGIN TIM1_Init 0 */
-
-  /* USER CODE END TIM1_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-
-  /* USER CODE BEGIN TIM1_Init 1 */
-
-  /* USER CODE END TIM1_Init 1 */
-  htim1.Instance = TIM1;
-  htim1.Init.Prescaler = 83;
-  htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim1.Init.Period = 1000;
-  htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim1.Init.RepetitionCounter = 0;
-  htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM1_Init 2 */
-
-  /* USER CODE END TIM1_Init 2 */
 
 }
 
@@ -512,6 +706,80 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void rcvCommandThread(void const *argument) {
+	uint8_t rxCommandBuff[SIZE_RX] = { 0 };
+	volatile uint8_t cursor = 0;
+	uint8_t rxValue[1] = { 0 };
+	osEvent evt;
+	while (true) {
+		evt = osSignalWait(osAnySignal, 1);//osWaitForever
+		if (evt.status == osEventSignal) {
+			rxValue[0] = rxUARTBuff[0];
+			HAL_UART_Receive_IT(&huart1, rxUARTBuff, 1);
+			rxCommandBuff[cursor] = rxValue[0];
+			cursor++;
+			if (cursor >= SIZE_RX) {
+				cursor = 0;
+			}
+			if (rxValue[0] == 0x00) {
+				SnniferCommand *pendingCmd;
+				pendingCmd = osMailCAlloc(pendingCommandsQueue, 1); // osWaitForever
+				if (pendingCmd != NULL) {
+					strcpy((char*) pendingCmd->commnddBuff,
+							(char*) rxCommandBuff);
+					pendingCmd->commandSize = cursor - 1;
+					osMailPut(pendingCommandsQueue, pendingCmd);
+					osThreadYield();
+				}
+				cursor = 0;
+			}
+
+		}
+		else{
+			osThreadYield();
+		}
+	}
+}
+
+void executeCommandThread(void const *argument) {
+	SnniferCommand *dequedComand;
+	uint8_t decodedCommand[20] = { 0 };
+	osEvent evt;
+	while (true) {
+		evt = osMailGet(pendingCommandsQueue, 1);//osWaitForever
+		if (evt.status == osEventMail) {
+			dequedComand = evt.value.p;
+			cobs_decode_result resutlt = cobs_decode(decodedCommand, 20,dequedComand->commnddBuff, dequedComand->commandSize);
+			if (resutlt.status == COBS_DECODE_OK) {
+				if (decodedCommand[0] == 'A') {
+					// Change activity status
+					processActivitySniferComand((char*) decodedCommand);
+				}
+				if (decodedCommand[0] == 'M') {
+					// Send a datagram to the CAN Bus
+					processMessageComand((char*) decodedCommand);
+				} else if (decodedCommand[0] == 'S') {
+					// Change bit rate
+					processBitRateCommand((char*) decodedCommand);
+				} else if (decodedCommand[0] == 'N') {
+					// Change Mode CAN bus Mode
+					processLoopBackModeCommand((char*) decodedCommand);
+				}	// Reboot Snifer
+				else if (decodedCommand[0] == 'R') {
+					processRebootCommand();
+				}
+			}
+			memset(decodedCommand, 0, sizeof(decodedCommand));
+			osMailFree(pendingCommandsQueue, dequedComand);
+			osThreadYield();
+		}
+		else{
+			osThreadYield();
+		}
+	}
+}
+
+
 void recieivedDatagramsThread(void const *argument) {
 	//CAN_RxHeaderTypeDef rxMessageHeader;
 	//uint8_t rxDataReceived[8];
@@ -522,7 +790,7 @@ void recieivedDatagramsThread(void const *argument) {
 			CANMessage *msgToSend = osMailCAlloc(canDatagramsQueue, noWait);
 			if (msgToSend != NULL) {
 				 msgToSend->header = rxMessageHeader;
-				 memcpy(msgToSend->data, rxDataReceived, sizeof(rxDataReceived));
+				 strcpy((char*) msgToSend->data, (char*) rxDataReceived);
 				 osMailPut(canDatagramsQueue, msgToSend);
 			}
 			osThreadYield();
@@ -534,7 +802,6 @@ void recieivedDatagramsThread(void const *argument) {
 	}
 }
 
-/*
 void fordwardDatagramsThread(void const *argument) {
 	uint8_t serializedDatagram[24] = { 0 };
 	uint8_t lenSerialized;
@@ -562,29 +829,6 @@ void fordwardDatagramsThread(void const *argument) {
 		}
 	}
 }
-*/
-
-void fordwardDatagramsThread(void const *argument) {
-	uint8_t serializedDatagram[100] = { 0 };
-	uint8_t lenSerialized;
-	osEvent evt;
-	CANMessage *dequeuedMsg;
-	while (true) {
-		evt = osMailGet(canDatagramsQueue, 1);	//osWaitForever
-		if (evt.status == osEventMail) {
-			dequeuedMsg = evt.value.p;
-			lenSerialized = serializeDatagram(serializedDatagram,dequeuedMsg->header, dequeuedMsg->data);
-			HAL_UART_Transmit(&huart1, serializedDatagram, lenSerialized,HAL_MAX_DELAY);
-			HAL_GPIO_TogglePin(BLUE_LED_CANTX_GPIO_Port, BLUE_LED_CANTX_Pin);
-			osMailFree(canDatagramsQueue, dequeuedMsg);
-			osThreadYield();
-
-		}else{
-			osThreadYield();
-		}
-	}
-}
-
 
 void idleThread(void const *argument) {
 	while (true) {

@@ -4,7 +4,11 @@
         <mruHistory>
             <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS/STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS Debug.launch&quot;/&gt;&#13;&#10;"/>
             <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/STM32F407VGT6_CAN_Sniffer_RTOS/STM32F407VGT6_CAN_Sniffer_RTOS Debug.launch&quot;/&gt;&#13;&#10;"/>
+<<<<<<< HEAD
             <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/STM32F407VGT6_CAN_Sniffer_NonRTOS/STM32F407VGT6_CAN_Sniffer_NonRTOS Debug.launch&quot;/&gt;&#13;&#10;"/>
+=======
+            <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS/STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS Debug.launch&quot;/&gt;&#13;&#10;"/>
+>>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
         </mruHistory>
         <favorites/>
     </launchGroup>
@@ -20,7 +24,11 @@
         <mruHistory>
             <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS/STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS Debug.launch&quot;/&gt;&#13;&#10;"/>
             <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/STM32F407VGT6_CAN_Sniffer_RTOS/STM32F407VGT6_CAN_Sniffer_RTOS Debug.launch&quot;/&gt;&#13;&#10;"/>
+<<<<<<< HEAD
             <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/STM32F407VGT6_CAN_Sniffer_NonRTOS/STM32F407VGT6_CAN_Sniffer_NonRTOS Debug.launch&quot;/&gt;&#13;&#10;"/>
+=======
+            <launch memento="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot; standalone=&quot;no&quot;?&gt;&#13;&#10;&lt;launchConfiguration local=&quot;false&quot; path=&quot;/STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS/STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS Debug.launch&quot;/&gt;&#13;&#10;"/>
+>>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
         </mruHistory>
         <favorites/>
     </launchGroup>

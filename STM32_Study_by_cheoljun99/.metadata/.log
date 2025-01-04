@@ -320,6 +320,7 @@ Command-line arguments:  -os win32 -ws win32 -arch x86_64
 
 !ENTRY org.eclipse.cdt.core 1 0 2024-10-08 18:07:13.713
 !MESSAGE Indexed 'RAMNV1' (95 sources, 217 headers) in 6.53 sec: 23,384 declarations; 142,209 references; 3 unresolved inclusions; 184 syntax errors; 179 unresolved names (0.11%)
+<<<<<<< HEAD
 !SESSION 2024-10-09 13:13:21.500 -----------------------------------------------
 eclipse.buildId=Version 1.16.1
 java.version=17.0.11
@@ -992,3 +993,5 @@ Command-line arguments:  -os win32 -ws win32 -arch x86_64
 
 !ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2024-10-29 17:07:44.721
 !MESSAGE Started RMI Server, listening on port 41338
+=======
+>>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6

@@ -1,10 +1,29 @@
-03:43:19 **** Incremental Build of configuration Debug for project STM32F407VGT6_CAN_Sniffer_RTOS ****
+<<<<<<< HEAD
+17:34:43 **** Incremental Build of configuration Debug for project STM32F407VGT6_CAN_Sniffer_RTOS ****
+=======
+20:57:22 **** Incremental Build of configuration Debug for project STM32F407VGT6_CAN_Sniffer_RTOS ****
+>>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
 make -j22 all 
+arm-none-eabi-gcc "../Core/Src/main.c" -mcpu=cortex-m4 -std=gnu11 -g3 -DDEBUG -DUSE_HAL_DRIVER -DSTM32F407xx -c -I../Core/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc -I../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy -I../Drivers/CMSIS/Device/ST/STM32F4xx/Include -I../Drivers/CMSIS/Include -I../Middlewares/Third_Party/FreeRTOS/Source/include -I../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS -I../Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F -I"C:/Users/cheoljun99/Desktop/STM32_reference/STM32_Study/STM32_Study_by_cheoljun99/STM32F407VGT6_CAN_Sniffer_RTOS/COBSLib/Inc" -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -fcyclomatic-complexity -MMD -MP -MF"Core/Src/main.d" -MT"Core/Src/main.o" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -o "Core/Src/main.o"
+arm-none-eabi-gcc -o "STM32F407VGT6_CAN_Sniffer_RTOS.elf" @"objects.list"   -mcpu=cortex-m4 -T"C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F407VGT6_CAN_Sniffer_RTOS\STM32F407VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F407VGT6_CAN_Sniffer_RTOS.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Finished building target: STM32F407VGT6_CAN_Sniffer_RTOS.elf
+ 
 arm-none-eabi-size  STM32F407VGT6_CAN_Sniffer_RTOS.elf 
+arm-none-eabi-objdump -h -S STM32F407VGT6_CAN_Sniffer_RTOS.elf  > "STM32F407VGT6_CAN_Sniffer_RTOS.list"
    text	   data	    bss	    dec	    hex	filename
-  35864	     96	  18440	  54400	   d480	STM32F407VGT6_CAN_Sniffer_RTOS.elf
+<<<<<<< HEAD
+  35576	     96	  18432	  54104	   d358	STM32F407VGT6_CAN_Sniffer_RTOS.elf
+=======
+  35896	     96	  18440	  54432	   d4a0	STM32F407VGT6_CAN_Sniffer_RTOS.elf
+>>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
 Finished building: default.size.stdout
  
+Finished building: STM32F407VGT6_CAN_Sniffer_RTOS.list
+ 
 
-03:43:19 Build Finished. 0 errors, 0 warnings. (took 680ms)
+<<<<<<< HEAD
+17:34:44 Build Finished. 0 errors, 0 warnings. (took 368ms)
+=======
+20:57:23 Build Finished. 0 errors, 0 warnings. (took 714ms)
+>>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
 

@@ -200,12 +200,12 @@ uint32_t sendCANMessage(uint8_t dlc, uint32_t msgID, bool isRTR,
 		pHeader.RTR = CAN_RTR_DATA;
 	}
 
-	// CAN ë©”ì‹œì§€ ì „ì†¡
+	// CAN ë©”ì‹œì§? ? „?†¡
 	if (HAL_CAN_AddTxMessage(&hcan1, &pHeader, data, &TxMailbox) == HAL_OK) {
-		// ë©”ì‹œì§€ ì „ì†¡ ì„±ê³µ ì‹œ ORANGE_LED ì¼œê¸°
+		// ë©”ì‹œì§? ? „?†¡ ?„±ê³? ?‹œ ORANGE_LED ì¼œê¸°
 		HAL_GPIO_TogglePin(ORANGE_LED_GPIO_Port, ORANGE_LED_Pin);
 	} else {
-	    // ë©”ì‹œì§€ ì „ì†¡ ì‹¤íŒ¨ ì‹œ ì—ëŸ¬ ì²˜ë¦¬
+	    // ë©”ì‹œì§? ? „?†¡ ?‹¤?Œ¨ ?‹œ ?—?Ÿ¬ ì²˜ë¦¬
 	    ErrorAppHandler();
 	}
 
@@ -430,18 +430,18 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan1) {
 	if (HAL_CAN_GetRxMessage(hcan1, CAN_RX_FIFO0, &rxMessageHeader,rxDataReceived) == HAL_OK) {
 		HAL_GPIO_TogglePin(PIN3_GPIO_Port, PIN3_Pin);
 
-		// STM32F407 ë³´ë“œì—ì„œ CAN ë©”ì‹œì§€ ìˆ˜ì‹  ì‹œ LED í† ê¸€
+		// STM32F407 ë³´ë“œ?—?„œ CAN ë©”ì‹œì§? ?ˆ˜?‹  ?‹œ LED ?† ê¸?
 		HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
 
-		/*ë””ë²„ê¹… ì½”ë“œ USART3ì— ìˆ˜ì‹ í•œ CAN ë°ì´í„°ë¥¼ ì¶œë ¥í•˜ê¸° ìœ„í•´ì„œ ì‚¬ìš©*/
-//		// í‘œì¤€/í™•ì¥ CAN IDì— ë”°ë¼ ì¶œë ¥ ë©”ì‹œì§€ ìƒì„±
+		/*?””ë²„ê¹… ì½”ë“œ USART3?— ?ˆ˜?‹ ?•œ CAN ?°?´?„°ë¥? ì¶œë ¥?•˜ê¸? ?œ„?•´?„œ ?‚¬?š©*/
+//		// ?‘œì¤?/?™•?¥ CAN ID?— ?”°?¼ ì¶œë ¥ ë©”ì‹œì§? ?ƒ?„±
 //		if (rxMessageHeader.IDE == CAN_ID_STD) {
 //		    sprintf(data, "Standard CAN ID: 0x%" PRIx32 "\r\n", rxMessageHeader.StdId);
 //		} else {
 //		    sprintf(data, "Extended CAN ID: 0x%" PRIx32 "\r\n", rxMessageHeader.ExtId);
 //		}
 //
-//		// UARTë¥¼ í†µí•´ CAN ID ì „ì†¡ (ë„ˆë¬´ ë¹ ë¥¸ ì „ì†¡ì„ í”¼í•˜ê¸° ìœ„í•´ ì ì ˆí•œ í¬ê¸°)
+//		// UARTë¥? ?†µ?•´ CAN ID ? „?†¡ (?„ˆë¬? ë¹ ë¥¸ ? „?†¡?„ ?”¼?•˜ê¸? ?œ„?•´ ? ? ˆ?•œ ?¬ê¸?)
 //		HAL_UART_Transmit(&huart3, (uint8_t*)data, strlen(data), HAL_MAX_DELAY);
 
 
@@ -475,7 +475,7 @@ void processCANMsg() {
 		HAL_UART_Transmit(&huart3, encodedDatagram, result.out_len + 1, 50);
 
 		// Toggle monitoring line to indicate a successful datagram retransmission
-		HAL_GPIO_TogglePin(PIN2_GPIO_Port, PIN2_Pin);
+		HAL_GPIO_TogglePin(RED_LED_GPIO_Port,RED_LED_Pin);
 	}
 }
 
@@ -624,9 +624,9 @@ void processMessageComand() {
 }
 
 void processBitRateCommand() {
-	uint8_t bitrateSrt[3];
-	substr((char*) decodedCommand, (char*) bitrateSrt, 1, 3);
-	int bitRate = toInteger(bitrateSrt, 3);
+	uint8_t bitrateSrt[4];
+	substr((char*) decodedCommand, (char*) bitrateSrt, 1, 4);
+	int bitRate = toInteger(bitrateSrt, 4);
 
 	bool idetified = false;
 
@@ -883,16 +883,16 @@ int main(void)
 	// Set CAN Filter to receive all messages
 	setCANFilterAcceptAll();
 
-	//ì›ë˜ì½”ë“œ
+	//?›?˜ì½”ë“œ
 	HAL_CAN_Start(&hcan1);
 	if (snifferAtivityStatus != SNIFFER_STOPPED) {
 		HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
 	}
 
-	/* ë””ë²„ê¹… ì½”ë“œ SNIFFER_ACTIVITY ìƒíƒœë¥¼ ë§Œë“¤ê¸° ìœ„í•´ì„œ */
+	/* ?””ë²„ê¹… ì½”ë“œ SNIFFER_ACTIVITY ?ƒ?ƒœë¥? ë§Œë“¤ê¸? ?œ„?•´?„œ */
 //	HAL_CAN_Start(&hcan1);
 //	if (HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING) != HAL_OK) {
-//		ErrorAppHandler();  // ì—ëŸ¬ ì²˜ë¦¬
+//		ErrorAppHandler();  // ?—?Ÿ¬ ì²˜ë¦¬
 //	}
 
 	// Initialize EncuedCANMsg

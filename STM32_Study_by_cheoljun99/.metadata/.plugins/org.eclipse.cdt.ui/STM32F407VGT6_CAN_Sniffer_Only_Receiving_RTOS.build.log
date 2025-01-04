@@ -1,0 +1,22 @@
+<<<<<<< HEAD
+19:46:39 **** Incremental Build of configuration Debug for project STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS ****
+make -j22 all 
+arm-none-eabi-size  STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS.elf 
+   text	   data	    bss	    dec	    hex	filename
+  17228	     12	   2020	  19260	   4b3c	STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS.elf
+Finished building: default.size.stdout
+ 
+
+19:46:39 Build Finished. 0 errors, 0 warnings. (took 218ms)
+=======
+20:49:31 **** Incremental Build of configuration Debug for project STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS ****
+make -j22 all 
+arm-none-eabi-size  STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS.elf 
+   text	   data	    bss	    dec	    hex	filename
+  32016	    100	  18484	  50600	   c5a8	STM32F407VGT6_CAN_Sniffer_Only_Receiving_RTOS.elf
+Finished building: default.size.stdout
+ 
+
+20:49:31 Build Finished. 0 errors, 0 warnings. (took 196ms)
+>>>>>>> d11152295f41fdfa255a00a18ae3432128dc5ba6
+

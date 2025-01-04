@@ -60,8 +60,8 @@ all: main-build
 main-build: STM32F401CCU6_UART_Communication.elf secondary-outputs
 
 # Tool invocations
-STM32F401CCU6_UART_Communication.elf STM32F401CCU6_UART_Communication.map: $(OBJS) $(USER_OBJS) C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32F401CCU6_UART_Communication\STM32F401CCUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "STM32F401CCU6_UART_Communication.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32F401CCU6_UART_Communication\STM32F401CCUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F401CCU6_UART_Communication.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+STM32F401CCU6_UART_Communication.elf STM32F401CCU6_UART_Communication.map: $(OBJS) $(USER_OBJS) C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F401CCU6_UART_Communication\STM32F401CCUX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "STM32F401CCU6_UART_Communication.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\cheoljun99\Desktop\STM32_reference\STM32_Study\STM32_Study_by_cheoljun99\STM32F401CCU6_UART_Communication\STM32F401CCUX_FLASH.ld" --specs=nosys.specs -Wl,-Map="STM32F401CCU6_UART_Communication.map" -Wl,--gc-sections -static -u _printf_float --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
